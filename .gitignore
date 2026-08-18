@@ -27,3 +27,4 @@ home/
 npm-debug.log*
 *.tmp
 .DS_Store
+.gitremote
