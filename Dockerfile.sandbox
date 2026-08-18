@@ -1,0 +1,49 @@
+# ============================================================
+#  Dockerfile.sandbox — Image sandbox untuk menjalankan `gacoan`
+#  WAJIB base debian:trixie-slim (Debian 13 / GCC 14).
+#
+#  MULTI-STAGE:
+#   - Stage "builder" : meng-compile `main.cpp` -> binary `gacoan`
+#                       memakai g++ (GCC 14) milik trixie, sehingga
+#                       binary PASTI kompatibel (GLIBCXX_3.4.32+).
+#   - Stage "runtime" : image akhir TETAP KECIL (tanpa g++), hanya
+#                       berisi binary hasil compile.
+#
+#  Alur pakai: ubah `main.cpp` -> `./setup.sh build` (recompile otomatis).
+#  Tidak perlu compile manual di host & tanpa risiko error GLIBCXX.
+# ============================================================
+
+# ---------- STAGE 1: BUILDER (compile source C++) ----------
+FROM debian:trixie-slim AS builder
+
+# Install g++ (GCC 14 di trixie)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends g++ \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /build
+
+# Salin source program (bukan binary)
+COPY main.cpp /build/main.cpp
+
+# Compile --std=c++17, optimized; output ke /build/gacoan
+RUN g++ -std=c++17 -O2 -o /build/gacoan /build/main.cpp \
+    && chmod +x /build/gacoan
+
+# ---------- STAGE 2: RUNTIME (image kecil) ----------
+FROM debian:trixie-slim
+
+# Salin binary hasil build dari stage builder
+COPY --from=builder /build/gacoan /usr/local/bin/gacoan
+
+# Beri izin eksekusi & buat user non-root
+RUN chmod +x /usr/local/bin/gacoan \
+    && useradd --uid 1001 --create-home --shell /usr/sbin/nologin sandboxuser
+
+# Beri direktori kerja untuk user sandbox
+WORKDIR /home/sandboxuser
+
+# Jalankan sebagai user non-root
+USER sandboxuser
+
+# Program aplikasi
+CMD ["/usr/local/bin/gacoan"]

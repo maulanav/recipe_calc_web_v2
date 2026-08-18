@@ -1,0 +1,69 @@
+# ============================================================
+#  docker-compose.yml — Stack: web + cloudflared (terintegrasi)
+#
+#  Menu: service `web` (aplikasi Node.js + akses Docker socket
+#  untuk membuat container sandbox gacoan), dan service
+#  `cloudflared` (mempublikasikan aplikasi via Cloudflare Tunnel).
+#
+#  Token tunnel Cloudflare dibaca dari file .env via TUNNEL_TOKEN.
+# ============================================================
+
+services:
+  web:
+    build:
+      context: .
+      args:
+        # GID grup docker di HOST. Deteksi dengan:
+        #   getent group docker | cut -d: -f3
+        # Bisa override lewat variabel env DOCKER_GID.
+        DOCKER_GID: ${DOCKER_GID:-115}
+    container_name: recipe-calc-web
+    restart: unless-stopped
+    ports:
+      - "7878:7878"
+    environment:
+      - WEB_USER=lmgsud
+      - WEB_PASS=pesandulu
+      - SESSION_SECRET=please-change-this-secret
+      - SANDBOX_IMAGE=recipe-sandbox:latest
+      - SANDBOX_NETWORK=none
+      - MAX_CONCURRENT_SESSIONS=5
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:7878/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: recipe-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    depends_on:
+      - web
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+
+networks:
+  default:
+    driver: bridge

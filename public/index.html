@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>GACOAN — Recipe Calculator Web Terminal</title>
+
+  <!-- Xterm.js v5.3.0 dari CDN (package unscoped `xterm`) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+
+  <style>
+    /* ============ Layout CSS aman (flex column) — §3.6 ============ */
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* Flex column jelas: header, banner, main.
+       Nota: class `app` dipasang pada #app-screen (div), bukan body,
+       jadi selector diarahkan ke #app-screen.app. */
+    #app-screen.app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Pada mode app, set html/body jadi 100% agar terminal mengisi */
+    body:has(#app-screen.app[style*="flex"]) {
+      overflow: hidden;
+    }
+
+    header {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: #181825;
+      border-bottom: 1px solid #313244;
+    }
+
+    header h1 {
+      font-size: 18px;
+      margin: 0;
+      color: #f9e2af;
+    }
+
+    header .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      padding: 6px 14px;
+      border: none;
+      border-radius: 6px;
+      background: #45475a;
+      color: #cdd6f4;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #585b70;
+    }
+
+    button.danger {
+      background: #f38ba8;
+      color: #1e1e2e;
+    }
+
+    .banner {
+      flex: 0 0 auto;
+      padding: 8px 16px;
+      background: #1e1e2e;
+      border-bottom: 1px solid #313244;
+      font-size: 13px;
+      color: #a6adc8;
+    }
+
+    /* Bagian terminal — flex 1 1 auto dengan min-height 0 agar berfungsi */
+    main {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      padding: 10px;
+    }
+
+    #terminal-container {
+      flex: 1 1 auto;
+      min-width: 0;
+      background: #181825;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #terminal-container .xterm {
+      height: 100%;
+    }
+
+    .status {
+      text-align: center;
+      padding: 20px;
+      color: #a6adc8;
+    }
+
+    .error {
+      color: #f38ba8;
+    }
+
+    /* ============ Layar login ============ */
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    .login-box {
+      background: #181825;
+      border: 1px solid #313244;
+      border-radius: 12px;
+      padding: 32px;
+      width: 320px;
+      max-width: 90vw;
+    }
+
+    .login-box h2 {
+      margin: 0 0 16px;
+      color: #f9e2af;
+      font-size: 20px;
+    }
+
+    .login-box input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 12px;
+      border: 1px solid #45475a;
+      border-radius: 6px;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      font-size: 14px;
+    }
+
+    .login-box button {
+      width: 100%;
+      background: #89b4fa;
+      color: #1e1e2e;
+      font-weight: 600;
+    }
+
+    .login-error {
+      color: #f38ba8;
+      font-size: 13px;
+      margin-top: 8px;
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+  <!-- ============ LAYAR LOGIN ============ -->
+  <div id="login-screen">
+    <div class="login-box">
+      <h2>🔒 Masuk — GACOAN Web</h2>
+      <input id="login-user" type="text" placeholder="Username" autocomplete="username" />
+      <input id="login-pass" type="password" placeholder="Password" autocomplete="current-password" />
+      <button id="login-btn">Masuk</button>
+      <div id="login-error" class="login-error"></div>
+    </div>
+  </div>
+
+  <!-- ============ LAYAR TERMINAL ============ -->
+  <div id="app-screen" class="app" style="display: none;">
+    <header>
+      <h1>🍹 GACOAN — Recipe Calculator</h1>
+      <div class="actions">
+        <button id="refresh-btn">↻ Refres</button>
+        <button id="logout-btn" class="danger">Keluar</button>
+      </div>
+    </header>
+    <div class="banner" id="status-banner">Menyiapkan sesi...</div>
+    <main>
+      <div id="terminal-container">
+        <div id="status" class="status">Menyiapkan sesi...</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // ============================================================
+    //  Frontend — Xterm.js + auto-fit + resize PTY
+    //  Sesuai §3.3 dan §3.4 (hindari term.onDispose, try/catch)
+    // ============================================================
+    (function () {
+      'use strict';
+
+      const loginScreen = document.getElementById('login-screen');
+      const appScreen = document.getElementById('app-screen');
+      const loginError = document.getElementById('login-error');
+      const loginUser = document.getElementById('login-user');
+      const loginPass = document.getElementById('login-pass');
+      const loginBtn = document.getElementById('login-btn');
+      const logoutBtn = document.getElementById('logout-btn');
+      const refreshBtn = document.getElementById('refresh-btn');
+      const statusBanner = document.getElementById('status-banner');
+      const statusEl = document.getElementById('status');
+      const terminalContainer = document.getElementById('terminal-container');
+
+      let term = null;
+      let ws = null;
+      let fitDisposable = null;
+      let resizeObserver = null;
+
+      // ------------------------------------------------------------
+      // Login flow
+      // ------------------------------------------------------------
+      async function doLogin() {
+        const user = loginUser.value.trim();
+        const pass = loginPass.value;
+        if (!user || !pass) {
+          loginError.textContent = 'Isi username dan password.';
+          return;
+        }
+        loginError.textContent = '';
+        loginBtn.disabled = true;
+
+        try {
+          const res = await fetch('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user, pass }),
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            loginError.textContent = data.error || 'Login gagal.';
+            loginBtn.disabled = false;
+            return;
+          }
+
+          // Tampilkan layar terminal & mulai sesi
+          loginScreen.style.display = 'none';
+          appScreen.style.display = 'flex';
+          startApp();
+        } catch (err) {
+          loginError.textContent = 'Tidak dapat terhubung ke server.';
+          loginBtn.disabled = false;
+        }
+      }
+
+      loginBtn.addEventListener('click', doLogin);
+      loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+      loginUser.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginPass.focus(); });
+
+      // ------------------------------------------------------------
+      // Logout / refresh
+      // ------------------------------------------------------------
+      async function doLogout() {
+        try { await fetch('/logout', { method: 'POST' }); } catch (_) {}
+        window.location.href = '/';
+      }
+
+      logoutBtn.addEventListener('click', doLogout);
+      refreshBtn.addEventListener('click', startApp);
+
+      // ------------------------------------------------------------
+      // Ambil ukuran terminal yang proporsional dari elemen
+      // ------------------------------------------------------------
+      function proposeSize() {
+        const dims = term && typeof term.proposeDimensions === 'function'
+          ? term.proposeDimensions()
+          : null;
+
+        if (dims) {
+          return { cols: Math.max(dims.cols, 2), rows: Math.max(dims.rows, 2) };
+        }
+
+        // Fallback manual kalau proposeDimensions tak tersedia
+        const charW = 9;
+        const charH = 18;
+        const w = terminalContainer.clientWidth || 800;
+        const h = terminalContainer.clientHeight || 400;
+        return {
+          cols: Math.max(Math.floor(w / charW), 2),
+          rows: Math.max(Math.floor(h / charH), 2),
+        };
+      }
+
+      // ------------------------------------------------------------
+      // Fit terminal ke kontainer (ukuran font disetel agar muat)
+      // ------------------------------------------------------------
+      function fitTerminal() {
+        if (!term || !terminalContainer) return;
+        try {
+          // Sederhana: hitung ulang cols/rows langsung via proposeSize
+          const size = proposeSize();
+          term.resize(size.cols, size.rows);
+          // Kirim resize ke server
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ resize: [size.cols, size.rows] }));
+          }
+        } catch (err) {
+          // Abaikan error resize — sesuai §3.4 (jangan bikin stuck)
+          console.warn('fitTerminal error:', err);
+        }
+      }
+
+      // ------------------------------------------------------------
+      // Buat & pasang terminal Xterm
+      // ------------------------------------------------------------
+      function initTerminal() {
+        if (term) {
+          try { term.dispose(); } catch (_) {}
+        }
+
+        term = new Terminal({
+          cursorBlink: true,
+          fontSize: 14,
+          fontFamily: "'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace",
+          scrollback: 1000,
+          convertEol: true,
+          theme: {
+            background: '#181825',
+            foreground: '#cdd6f4',
+          },
+        });
+
+        term.open(terminalContainer);
+        term.focus();
+
+        // Bersihkan elemen status
+        if (statusEl && statusEl.parentNode) {
+          statusEl.parentNode.removeChild(statusEl);
+        }
+
+        // Fit saat window resize — §3.3
+        window.addEventListener('resize', () => {
+          fitTerminal();
+        });
+
+        // ResizeObserver untuk deteksi perubahan ukuran kontainer — §3.3
+        if (typeof ResizeObserver !== 'undefined' && !resizeObserver) {
+          resizeObserver = new ResizeObserver(() => {
+            fitTerminal();
+          });
+          resizeObserver.observe(terminalContainer);
+        }
+      }
+
+      // ------------------------------------------------------------
+      // Koneksi WebSocket ke server dengan token
+      // ------------------------------------------------------------
+      async function connect() {
+        try {
+          // Ambil token via endpoint (memerlukan sesi auth)
+          const res = await fetch('/api/ws-token');
+          if (!res.ok) {
+            statusBanner.textContent = 'Sesi kedaluwarsa. Silakan login ulang.';
+            setTimeout(doLogout, 1500);
+            return;
+          }
+          const data = await res.json();
+          const token = data.token;
+
+          // Siapkan terminal
+          initTerminal();
+
+          const size = proposeSize();
+          const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+          const wsUrl = proto + '://' + window.location.host +
+            '/ws?token=' + encodeURIComponent(token) +
+            '&cols=' + size.cols + '&rows=' + size.rows;
+
+          ws = new WebSocket(wsUrl);
+
+          ws.onopen = function () {
+            statusBanner.textContent = 'Terhubung — sesi sandbox aktif.';
+            // Fit sekali lagi setelah terbuka
+            fitTerminal();
+            term.focus();
+          };
+
+          ws.onmessage = function (evt) {
+            if (term) {
+              term.write(evt.data);
+            }
+          };
+
+          ws.onerror = function () {
+            statusBanner.textContent = 'Koneksi WebSocket error.';
+          };
+
+          ws.onclose = function () {
+            statusBanner.textContent = 'Sesi ditutup. Klik "Refres" untuk memulai ulang.';
+            if (term) {
+              term.write('\r\n\r\n[!] Sesi berakhir. Klik "Refres" untuk memulai lagi.\r\n');
+            }
+          };
+
+          // Alirkan stdin terminal -> server (lalu ke container)
+          term.onData(function (data) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(data);
+            }
+          });
+        } catch (err) {
+          // Bungkus try/catch penuh — §3.4 agar tidak stuck
+          console.error('connect error:', err);
+          statusBanner.textContent = 'Gagal memulai sesi.';
+        }
+      }
+
+      function startApp() {
+        statusBanner.textContent = 'Menyiapkan sesi...';
+        connect();
+      }
+    })();
+  </script>
+</body>
+</html>
