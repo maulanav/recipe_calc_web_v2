@@ -100,17 +100,27 @@ TUNNEL_TOKEN=<token cloudflare>
 | `./setup.sh down` | Stop stack |
 | `./setup.sh restart` | Rebuild + restart stack |
 | `./setup.sh gid` | Cek GID docker host |
+| `./setup.sh build push` | Build + stack, lalu push otomatis ke git |
+| `./setup.sh push` | Commit & push semua perubahan ke git |
+| `./setup.sh gitremote <url>` | Simpan URL remote git |
+| `./setup.sh gitcheck` | Lihat status repo git + remote |
 
-## 11. Fitur yang Sedang Dalam Proses (Belum Selesai)
+## 11. Fitur Auto-push ke Git (SELESAI diimplementasikan)
 
-**Auto-push ke git** — ditambahkan ke `setup.sh`, tapi **belum diimplementasikan**:
-- Desain yang disepakati:
-  - Push **opsional**: `./setup.sh build push`.
-  - Branch: **deteksi otomatis** (`git branch --show-current`).
-  - Origin: set manual via perintah baru `./setup.sh gitremote <url>`.
-- **Belum ada repo git** (folder belum `git init`).
-- URL GitHub user: `https://github.com/maulanav/` — nama repo **belum ditentukan**.
-- Perlu: buat repo di GitHub, dapatkan URL, set origin, jalankan push.
+**Auto-push ke git** sudah DIIMPLEMENTASIKAN di `setup.sh`:
+- Push **opsional**: `./setup.sh build push` (arg `push` sebagai argumen kedua pada `build`).
+- Push manual: `./setup.sh push` (commit semua & push; branch otomatis).
+- Branch: **deteksi otomatis** (`git branch --show-current`).
+- Origin: set via `./setup.sh gitremote <url>`; disimpan di file `.gitremote`.
+- `.gitremote` ditambahkan otomatis ke `.gitignore` agar tidak ikut dicommit.
+- Jika repo belum ada, `./setup.sh push` melakukan `git init` + `git branch -M main` otomatis.
+- `.env` (TUNNEL_TOKEN) tetap aman tidak dicommit (sudah di `.gitignore`).
+- Perintah tambahan: `./setup.sh gitcheck` (lihat status repo + remote).
+
+**Kondisi repo saat ini:**
+- Folder **sudah** `git init` (branch `main`), commit awal sudah dibuat.
+- Remote origin diset ke `https://github.com/maulanav/recipe_calc_web_v2` (tersimpan lokal).
+- **GITHUB REPO BELUM DIBUAT** — push akan gagal sampai repo dibuat di GitHub.
 
 ## 12. Catatan Penting / Kendala
 
@@ -120,6 +130,7 @@ TUNNEL_TOKEN=<token cloudflare>
 
 ## 13. Tugas Selanjutnya (Jika Dilanjutkan)
 
-1. Buat repo GitHub dengan nama (mis. `recipe_calc_web_v2`).
-2. Set remote origin: `git remote add origin <url>`.
-3. Implementasikan fitur git push di `setup.sh` (lihat §11).
+1. **Buat repo GitHub** (mis. `recipe_calc_web_v2`) di akun `maulanav`.
+2. **Uncomment/langsung push**: jalankan `./setup.sh push` (remote origin sudah diset).
+   - Tuntaskan autentikasi GitHub (credential helper) agar push berhasil.
+3. (Opsional) Verifikasi status dengan `./setup.sh gitcheck`.
