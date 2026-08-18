@@ -137,11 +137,13 @@ RESEP_JSON_URL=https://raw.githubusercontent.com/maulanav/recipe_calc_web_v2/mai
 - `.env` (TUNNEL_TOKEN) tetap aman tidak dicommit (sudah di `.gitignore`).
 - Perintah tambahan: `./setup.sh gitcheck` (lihat status repo + remote).
 
-**Kondisi repo saat ini:**
+**Kondisi repo saat ini (SUDAH AKTIF):**
 - Folder **sudah** `git init` (branch `main`), commit awal sudah dibuat.
-- Remote origin diset ke **SSH**: `git@github.com:maulanav/recipe_calc_web_v2.git` (tersimpan lokal di file `.gitremote`).
-- **GIT AUTH SECARA SSH SUDAH TERHUBUNG** — SSH key baru (`~/.ssh/id_ed25519_new`) sudah terdaftar di akun GitHub pengguna.
-- **GITHUB REPO** status: lihat catatan di bagian 13 tentang kebutuhan buat repo / push.
+- Remote origin diset ke **SSH**: `git@github.com:maulanav/recipe_calc_web_v2.git`.
+- **GIT AUTH SSH TERHUBUNG & TERVERIFIKASI** ✅ — `ssh -T git@github.com` → "Hi maulanav! ... successfully authenticated". SSH key `~/.ssh/id_ed25519_new` terdaftar di akun GitHub.
+- **REPO GITHUB SUDAH DIBUAT**: `https://github.com/maulanav/recipe_calc_web_v2` ✅.
+- **PUSH SUDAH BERHASIL**: commit `37a56a7..0d3b91c` → `main` sinkron dengan `origin/main`, working tree bersih.
+- File yang sudah di-push termasuk `resep.json`, `main.cpp` baru, `server.js`, `Dockerfile.sandbox`, `docker-compose.yml`, `project_context.md`.
 
 ## 12. Catatan Penting / Kendala
 
@@ -149,13 +151,22 @@ RESEP_JSON_URL=https://raw.githubusercontent.com/maulanav/recipe_calc_web_v2/mai
 - Saat mengedit `server.js`, jangan tambahkan Google OAuth (sudah di-revert).
 - `main.cpp` dan `Dockerfile.sandbox` memuat fitur biang teh & multi-stage yang **harus dipertahankan**.
 
-## 13. Tugas Selanjutnya (Jika Dilanjutkan)
+## 13. Status & Tugas Selanjutnya
 
-1. **Buat repo GitHub** (mis. `recipe_calc_web_v2`) di akun `maulanav`.
-2. **Daftarkan SSH key baru** ke akun GitHub:
-   - Public key baru: `~/.ssh/id_ed25519_new.pub` (key lama `~/.ssh/id_ed25519` tidak konsisten/hilang private-nya).
-   - Tambahkan di GitHub → Settings → SSH and GPG keys → New SSH key.
-3. **Push**: jalankan `./setup.sh push` (remote origin SSH sudah diset).
-4. **Build image sandbox** dengan `main.cpp` baru: `./setup.sh build`.
-5. Pastikan `resep.json` ter-upload → `server.js` mengunduhnya → tiap container sandbox menerima `RESEP_JSON` via env.
-6. (Opsional) Verifikasi status dengan `./setup.sh gitcheck`.
+**Sudah selesai:**
+1. ✅ Repo GitHub `recipe_calc_web_v2` (akun `maulanav`) — **dibuat**.
+2. ✅ SSH key baru `~/.ssh/id_ed25519_new` — **terdaftar & terautentikasi** di GitHub.
+3. ✅ `resep.json` + perubahan kode (`main.cpp`, `server.js`, `Dockerfile.sandbox`, `docker-compose.yml`, `project_context.md`) — **berhasil di-push** ke `origin/main`.
+
+**Tersisa (perlu `sudo`):**
+4. ⚠️ **Build image sandbox** dengan `main.cpp` baru (agar binary `gacoan` baru dipakai & `resep.json` ikut ke image):
+   ```
+   ./setup.sh build
+   ```
+   - Setelah build, container web `recipe-calc-web` otomatis di-restart (docker compose up -d --build).
+   - Saat start, `server.js` mengunduh `resep.json` dari `RESEP_JSON_URL` (repo GitHub) → tiap container sandbox menerima `RESEP_JSON` via env.
+
+**Verifikasi opsional:**
+5. `./setup.sh gitcheck` — lihat status repo + remote.
+6. Cek log web: `./setup.sh web` — pastikan muncul `[gacoan-web] Sumber data resep: dimuat dari GitHub (N resep)`.
+7. `ssh -T git@github.com` — verifikasi auth SSH.
