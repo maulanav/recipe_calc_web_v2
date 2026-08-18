@@ -1,0 +1,84 @@
+{
+  "resep": [
+    {
+      "id": 1,
+      "nama": "MILO",
+      "bisaRacing": true,
+      "powder": 1200,
+      "airPanas": 2000,
+      "airSuhuRuang": 570,
+      "creamer": 0,
+      "skm": 0,
+      "susuEvaporasi": 0,
+      "simpleSyrup": 260,
+      "labelPowder": "Powder Milo"
+    },
+    {
+      "id": 2,
+      "nama": "THAI GREEN TEA",
+      "bisaRacing": false,
+      "powder": 150,
+      "airPanas": 2000,
+      "airSuhuRuang": 480,
+      "creamer": 220,
+      "skm": 660,
+      "susuEvaporasi": 660,
+      "simpleSyrup": 560,
+      "labelPowder": "Powder Thai Green Tea"
+    },
+    {
+      "id": 3,
+      "nama": "LEMON TEA",
+      "bisaRacing": true,
+      "powder": 600,
+      "airPanas": 2000,
+      "airSuhuRuang": 1400,
+      "creamer": 0,
+      "skm": 0,
+      "susuEvaporasi": 0,
+      "simpleSyrup": 0,
+      "labelPowder": "Powder Lemon Tea"
+    },
+    {
+      "id": 4,
+      "nama": "ORANGE",
+      "bisaRacing": true,
+      "powder": 380,
+      "airPanas": 2000,
+      "airSuhuRuang": 1620,
+      "creamer": 0,
+      "skm": 0,
+      "susuEvaporasi": 0,
+      "simpleSyrup": 0,
+      "labelPowder": "Powder Orange"
+    }
+  ],
+  "biangTeh": {
+    "persen": {
+      "base": 0.455,
+      "air": 0.242,
+      "simple": 0.303
+    },
+    "gramPerPorsi": 200.0,
+    "porsiAcuan": [
+      {
+        "porsi": 20,
+        "base": 1818,
+        "air": 970,
+        "simple": 1212
+      },
+      {
+        "porsi": 30,
+        "base": 2727,
+        "air": 1454.4,
+        "simple": 1818
+      },
+      {
+        "porsi": 33,
+        "base": 3000,
+        "air": 1600,
+        "simple": 2000
+      }
+    ]
+  }
+}

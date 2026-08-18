@@ -27,7 +27,39 @@ const WEB_PASS = process.env.WEB_PASS || 'admin';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'please-change-this-secret';
 const SANDBOX_IMAGE = process.env.SANDBOX_IMAGE || 'recipe-sandbox:latest';
 const SANDBOX_NETWORK = process.env.SANDBOX_NETWORK || 'none';
+const RESEP_JSON_URL = process.env.RESEP_JSON_URL || 'https://raw.githubusercontent.com/maulanav/recipe_calc_web_v2/main/resep.json';
 const MAX_CONCURRENT_SESSIONS = parseInt(process.env.MAX_CONCURRENT_SESSIONS || '5', 10);
+
+// Data resep yang diunduh dari GitHub (untuk disuntikkan ke container via env)
+let cachedResepJson = null;         // isi resep.json (string) atau null
+let cachedResepNote = 'belum dimuat';
+
+// ============================================================
+//  Unduh resep.json dari GitHub (raw URL). Dipanggil saat start.
+//  Gagal -> lanjut tanpa data (program C++ punya fallback sendiri).
+// ============================================================
+function loadResepFromUrl(url) {
+  return fetch(url)
+    .then((res) => {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.text();
+    })
+    .then((text) => {
+      // Validasi ringan: harus JSON yang punya kunci 'resep'
+      const parsed = JSON.parse(text);
+      if (!parsed || !Array.isArray(parsed.resep)) {
+        throw new Error('format salah (tidak ada "resep")');
+      }
+      cachedResepJson = text.replace(/\s+/g, ' ').trim();
+      cachedResepNote = `dimuat dari GitHub (${parsed.resep.length} resep)`;
+      return true;
+    })
+    .catch((err) => {
+      cachedResepJson = null;
+      cachedResepNote = 'gagal unduh: ' + err.message;
+      return false;
+    });
+}
 
 // ============================================================
 //  Express + HTTP server + session (dibagi dengan WebSocket)
@@ -210,8 +242,14 @@ wss.on('connection', (ws, request) => {
   ws.on('error', closeHandler);
 
   // 1) Buat container sandbox (ephemeral, AutoRemove, TTY, stdin terbuka)
+  // Environment untuk container: suntikkan resep.json (untuk dibaca program C++)
+  const sandboxEnv = cachedResepJson
+    ? ['RESEP_JSON=' + cachedResepJson]
+    : [];
+
   docker.createContainer({
     Image: SANDBOX_IMAGE,
+    Env: sandboxEnv,
     Tty: true,
     OpenStdin: true,
     StdinOnce: false,
@@ -310,4 +348,13 @@ wss.on('connection', (ws, request) => {
 // ============================================================
 server.listen(PORT, () => {
   console.log(`[gacoan-web] Server berjalan di http://localhost:${PORT}`);
+
+  // Muat data resep dari GitHub saat start (tidak memblokir listen)
+  console.log(`[gacoan-web] Mengunduh resep.json dari GitHub...`);
+  loadResepFromUrl(RESEP_JSON_URL).then((ok) => {
+    console.log(`[gacoan-web] Sumber data resep: ${cachedResepNote}`);
+    if (!ok) {
+      console.log('[gacoan-web] (Program C++ akan memakai fallback/data default di dalam sandbox.)');
+    }
+  });
 });

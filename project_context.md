@@ -23,6 +23,7 @@ bernama `gacoan` (kalkulator resep minuman). Web memakai:
 | File | Fungsi |
 |------|--------|
 | `main.cpp` | Program C++ `gacoan` (kalkulator resep) — **interactive CLI** |
+| `resep.json` | **Data berat semua resep + biang teh** (dibaca program; sumber utama dari GitHub) |
 | `setup.sh` | Skrip bantuan: build, prep, logs, clean, down, restart |
 | `server.js` | Backend Express + WebSocket + Dockerode |
 | `Dockerfile.sandbox` | **Multi-stage**: compile `main.cpp` di image, runtime kecil |
@@ -67,6 +68,19 @@ bernama `gacoan` (kalkulator resep minuman). Web memakai:
 Alur kerja: **ubah `main.cpp` → `./setup.sh build`** → compile otomatis di image.
 Tidak perlu compile manual di host (tapi tetap bisa: `g++ -std=c++17 -O2 -o gacoan main.cpp`).
 
+## 6b. Data Bahan dari JSON (update tanpa rebuild C++)
+
+- **Berat bahan semua resep + biang teh** kini disimpan di `resep.json`, **tidak hardcode** di `main.cpp`.
+- Saat `gacoan` berjalan, data dimuat dengan **prioritas**:
+  1. **Env `RESEP_JSON`** (dipakai di container sandbox — server.js mengisinya dari GitHub).
+  2. File `resep.json` lokal (dari image sandbox / folder project).
+  3. Fallback hardcoded (agar program tetap jalan jika JSON gagal dibaca).
+- `main.cpp` memakai **parser JSON minimal (tanpa library eksternal)** — tetap kompatibel dengan builder yang hanya berisi `g++`.
+- Untuk **update resep tanpa rebuild C++**:
+  - Ubah `resep.json` di GitHub → restart web server → `server.js` mengunduh ulang & menyuntikkan via env ke tiap container.
+- `server.js` membaca env `RESEP_JSON_URL` (default `https://raw.githubusercontent.com/maulanav/recipe_calc_web_v2/main/resep.json`) lalu memvalidasi & menyimpan ke `cachedResepJson`, diteruskan lewat `Env: ['RESEP_JSON=...']` di `createContainer`.
+- `Dockerfile.sandbox` menyalin `resep.json` ke `/usr/local/share/gacoan/resep.json` sebagai fallback lokal di image.
+
 ## 7. Login Web
 
 - **Hanya username/password** (dari env `WEB_USER`/`WEB_PASS`), default `lmgsud`/`pesandulu`.
@@ -84,6 +98,12 @@ Tidak perlu compile manual di host (tapi tetap bisa: `g++ -std=c++17 -O2 -o gaco
 Isi saat ini:
 ```
 TUNNEL_TOKEN=<token cloudflare>
+```
+
+Env tambahan (opsional, untuk sumber resep dari GitHub):
+```
+# URL raw resep.json di GitHub (jika bukan default)
+RESEP_JSON_URL=https://raw.githubusercontent.com/maulanav/recipe_calc_web_v2/main/resep.json
 ```
 
 ## 10. Perintah `setup.sh`
@@ -119,8 +139,9 @@ TUNNEL_TOKEN=<token cloudflare>
 
 **Kondisi repo saat ini:**
 - Folder **sudah** `git init` (branch `main`), commit awal sudah dibuat.
-- Remote origin diset ke `https://github.com/maulanav/recipe_calc_web_v2` (tersimpan lokal).
-- **GITHUB REPO BELUM DIBUAT** — push akan gagal sampai repo dibuat di GitHub.
+- Remote origin diset ke **SSH**: `git@github.com:maulanav/recipe_calc_web_v2.git` (tersimpan lokal di file `.gitremote`).
+- **GIT AUTH SECARA SSH SUDAH TERHUBUNG** — SSH key baru (`~/.ssh/id_ed25519_new`) sudah terdaftar di akun GitHub pengguna.
+- **GITHUB REPO** status: lihat catatan di bagian 13 tentang kebutuhan buat repo / push.
 
 ## 12. Catatan Penting / Kendala
 
@@ -131,6 +152,10 @@ TUNNEL_TOKEN=<token cloudflare>
 ## 13. Tugas Selanjutnya (Jika Dilanjutkan)
 
 1. **Buat repo GitHub** (mis. `recipe_calc_web_v2`) di akun `maulanav`.
-2. **Uncomment/langsung push**: jalankan `./setup.sh push` (remote origin sudah diset).
-   - Tuntaskan autentikasi GitHub (credential helper) agar push berhasil.
-3. (Opsional) Verifikasi status dengan `./setup.sh gitcheck`.
+2. **Daftarkan SSH key baru** ke akun GitHub:
+   - Public key baru: `~/.ssh/id_ed25519_new.pub` (key lama `~/.ssh/id_ed25519` tidak konsisten/hilang private-nya).
+   - Tambahkan di GitHub → Settings → SSH and GPG keys → New SSH key.
+3. **Push**: jalankan `./setup.sh push` (remote origin SSH sudah diset).
+4. **Build image sandbox** dengan `main.cpp` baru: `./setup.sh build`.
+5. Pastikan `resep.json` ter-upload → `server.js` mengunduhnya → tiap container sandbox menerima `RESEP_JSON` via env.
+6. (Opsional) Verifikasi status dengan `./setup.sh gitcheck`.

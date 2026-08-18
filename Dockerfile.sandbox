@@ -35,6 +35,10 @@ FROM debian:trixie-slim
 # Salin binary hasil build dari stage builder
 COPY --from=builder /build/gacoan /usr/local/bin/gacoan
 
+# Salin resep.json sebagai fallback data lokal (program juga membaca dari
+# env RESEP_JSON, lihat main.cpp). Letakkan di lokasi yang bisa dibaca user non-root.
+COPY resep.json /usr/local/share/gacoan/resep.json
+
 # Beri izin eksekusi & buat user non-root
 RUN chmod +x /usr/local/bin/gacoan \
     && useradd --uid 1001 --create-home --shell /usr/sbin/nologin sandboxuser

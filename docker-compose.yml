@@ -28,6 +28,8 @@ services:
       - SANDBOX_IMAGE=recipe-sandbox:latest
       - SANDBOX_NETWORK=none
       - MAX_CONCURRENT_SESSIONS=5
+      # Sumber resep.json dari GitHub (override lewat .env jika perlu)
+      - RESEP_JSON_URL=${RESEP_JSON_URL:-https://raw.githubusercontent.com/maulanav/recipe_calc_web_v2/main/resep.json}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     security_opt:
